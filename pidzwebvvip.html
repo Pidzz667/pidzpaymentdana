@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PidzStore - Pembayaran Dana</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark fallback background */
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Hide scrollbars due to background and particles */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative; /* Needed for absolute positioning of background and canvas */
+        }
+
+        /* Full-screen background image */
+        .background-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('image.png'); /* Your uploaded image */
+            background-size: cover;
+            background-position: center;
+            filter: brightness(0.4) grayscale(0.5); /* Darken and desaturate for better text contrast */
+            z-index: -2; /* Behind everything */
+        }
+
+        /* Canvas for particles */
+        #particlesCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1; /* Above background image, below content */
+        }
+
+        /* Main content container styling */
+        .main-container {
+            background-color: rgba(26, 32, 44, 0.85); /* Slightly transparent dark background for readability */
+            color: white;
+            padding: 2rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            max-width: 28rem; /* Equivalent to max-w-md */
+            width: 100%;
+            z-index: 1; /* Above background and particles */
+            position: relative; /* Ensure it's positioned correctly */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+
+
+        /* Custom 3D-like effect for DANA card */
+        .dana-card-3d {
+            background: linear-gradient(145deg, #6366f1, #8b5cf6); /* Purple-blue gradient */
+            transform: perspective(1000px) rotateY(10deg) rotateX(5deg);
+            transform-style: preserve-3d;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 10px rgba(139, 92, 246, 0.7);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 1.5rem; /* More rounded */
+        }
+
+        .dana-card-3d:hover {
+            transform: perspective(1000px) rotateY(0deg) rotateX(0deg);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 20px rgba(139, 92, 246, 0.9);
+        }
+
+        /* Modal backdrop */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        /* Modal content animation */
+        .modal-content {
+            transform: translateY(-50px);
+            opacity: 0;
+            animation: fadeInSlideUp 0.3s forwards ease-out;
+        }
+
+        @keyframes fadeInSlideUp {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        /* Custom message box for alerts */
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4CAF50; /* Green for success */
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .message-box.error {
+            background-color: #f44336; /* Red for error */
+        }
+
+        .message-box.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Background Image -->
+    <div class="background-image"></div>
+
+    <!-- Particles Canvas -->
+    <canvas id="particlesCanvas"></canvas>
+
+    <!-- Message Box -->
+    <div id="messageBox" class="message-box hidden"></div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+
+        <!-- PidzStore Logo/Title -->
+        <h1 class="text-4xl font-bold text-center mb-8 text-purple-400 flex items-center justify-center">
+            <i class="fas fa-store mr-3 text-purple-500"></i> PidzStore
+        </h1>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="mb-8">
+            <h2 class="text-2xl font-semibold text-center mb-4 text-gray-200">Login ke PidzStore</h2>
+            <!-- Text for login prompt -->
+            <p class="text-center text-gray-400 text-md mb-6">Silahkan Masuk Untuk Mendapatkan Nomer Pembayaran Via Dana</p>
+            <div class="mb-4">
+                <label for="username" class="block text-gray-400 text-sm font-bold mb-2">Username:</label>
+                <input type="text" id="username" class="shadow appearance-none border border-gray-700 rounded-xl w-full py-3 px-4 bg-gray-800 text-gray-200 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Masukkan Username Anda">
+            </div>
+            <div class="mb-6 relative"> <!-- Added relative for icon positioning -->
+                <label for="password" class="block text-gray-400 text-sm font-bold mb-2">Password:</label>
+                <input type="password" id="password" class="shadow appearance-none border border-gray-700 rounded-xl w-full py-3 px-4 pr-10 bg-gray-800 text-gray-200 leading-tight focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Masukkan Password Anda">
+                <!-- Eye icon for show/hide password -->
+                <span class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer top-7" id="togglePassword">
+                    <i class="fas fa-eye text-gray-400 hover:text-white"></i>
+                </span>
+            </div>
+            <button id="loginButton" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-3 px-6 rounded-xl w-full transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                Login
+            </button>
+        </div>
+
+        <!-- Main Content (Hidden until login) -->
+        <!-- Added border-4 border-white p-4 rounded-xl to this div -->
+        <div id="mainContent" class="hidden text-center border-4 border-white p-4 rounded-xl">
+            <p id="loginMessage" class="text-green-400 text-lg font-medium mb-6"></p>
+            <h2 class="text-2xl font-semibold mb-6 text-gray-200">Pilih Metode Pembayaran</h2>
+            <button id="openDanaModalBtn" class="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold py-4 px-8 rounded-xl w-full transition duration-300 ease-in-out transform hover:scale-105 shadow-lg flex items-center justify-center">
+                <i class="fas fa-wallet mr-3"></i> Pembayaran DANA
+            </button>
+
+            <!-- WhatsApp Button -->
+            <a href="https://wa.me/6285816148963" target="_blank" class="mt-6 inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-xl transition duration-300 ease-in-out transform hover:scale-105 shadow-lg">
+                <i class="fab fa-whatsapp mr-2"></i> Hubungi Kami via WhatsApp
+            </a>
+            <!-- PidzStore text below WhatsApp button -->
+            <p class="text-center text-gray-400 text-sm mt-4">PidzStore</p>
+            <!-- New text below PidzStore -->
+            <p class="text-center text-gray-400 text-sm mt-2">Terimakasih atas kepercayaan anda</p>
+            <!-- Humorous phrase below the frame -->
+            <p class="text-center text-gray-500 text-xs mt-4">Kata pepatah tahilad katanya dapit masih gamonn wkwk dongo dapitt</p>
+        </div>
+
+    </div>
+
+    <!-- DANA Information Modal (Hidden by default) -->
+    <div id="danaInfoModal" class="modal-backdrop hidden">
+        <div class="modal-content bg-gray-800 p-8 rounded-3xl shadow-2xl max-w-lg w-full border-4 border-white relative animate-fadeInSlideUp">
+            <button id="closeDanaModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl font-bold">
+                &times;
+            </button>
+            <h3 class="text-3xl font-bold text-center mb-6 text-purple-400">Informasi Pembayaran DANA</h3>
+
+            <!-- DANA Card with 3D-like effect -->
+            <div class="dana-card-3d p-6 mb-8 text-white text-center rounded-2xl relative overflow-hidden">
+                <div class="absolute inset-0 bg-black opacity-10 rounded-2xl"></div>
+                <div class="relative z-10">
+                    <p class="text-xl font-medium mb-2 opacity-90">Nomor DANA:</p>
+                    <p class="text-4xl font-extrabold mb-4 tracking-wide">088237191979</p>
+                    <p class="text-xl font-medium mb-4 opacity-90">Atas Nama:</p>
+                    <p class="text-3xl font-extrabold uppercase">EKA MEIRINA</p>
+                    <button class="mt-6 bg-white text-purple-700 font-bold py-3 px-8 rounded-full text-lg shadow-xl hover:bg-gray-200 transition duration-300 ease-in-out transform hover:scale-105">
+                        Silahkan Bayar
+                    </button>
+                </div>
+            </div>
+            <!-- PidzStore text in modal -->
+            <p class="text-center text-purple-400 text-4xl font-extrabold mt-4 mb-2">PidzStore</p>
+            <p class="text-center text-gray-400 text-sm">Dev: PidzStore Only</p>
+        </div>
+    </div>
+
+    <script>
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginButton = document.getElementById('loginButton');
+        const loginSection = document.getElementById('loginSection');
+        const mainContent = document.getElementById('mainContent');
+        const loginMessage = document.getElementById('loginMessage');
+        const openDanaModalBtn = document.getElementById('openDanaModalBtn');
+        const danaInfoModal = document.getElementById('danaInfoModal');
+        const closeDanaModalBtn = document.getElementById('closeDanaModalBtn');
+        const messageBox = document.getElementById('messageBox');
+        const togglePassword = document.getElementById('togglePassword');
+
+        // Function to show a custom message box
+        function showMessageBox(message, isError = false) {
+            messageBox.textContent = message;
+            messageBox.classList.remove('hidden', 'error');
+            messageBox.classList.add('show');
+            if (isError) {
+                messageBox.classList.add('error');
+            } else {
+                messageBox.classList.remove('error');
+            }
+
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+                setTimeout(() => {
+                    messageBox.classList.add('hidden');
+                }, 300); // Allow fade-out transition to complete
+            }, 3000); // Message disappears after 3 seconds
+        }
+
+        // Login Logic
+        loginButton.addEventListener('click', () => {
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+
+            // Updated username and password
+            if (username === 'PidzStore' && password === 'PidzPoke') {
+                loginSection.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                loginMessage.textContent = 'Username dan password benar, silahkan pilih metode pembayaran!';
+                showMessageBox('Login Berhasil!', false);
+            } else {
+                showMessageBox('Username atau Password salah!', true);
+            }
+        });
+
+        // Toggle password visibility
+        togglePassword.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            togglePassword.querySelector('i').classList.toggle('fa-eye');
+            togglePassword.querySelector('i').classList.toggle('fa-eye-slash');
+        });
+
+        // Open DANA Modal
+        openDanaModalBtn.addEventListener('click', () => {
+            danaInfoModal.classList.remove('hidden');
+        });
+
+        // Close DANA Modal
+        closeDanaModalBtn.addEventListener('click', () => {
+            danaInfoModal.classList.add('hidden');
+        });
+
+        // Close modal when clicking outside of it
+        danaInfoModal.addEventListener('click', (event) => {
+            if (event.target === danaInfoModal) {
+                danaInfoModal.classList.add('hidden');
+            }
+        });
+
+        // Handle touch events for modal (similar to click outside)
+        danaInfoModal.addEventListener('touchend', (event) => {
+            if (event.target === danaInfoModal) {
+                danaInfoModal.classList.add('hidden');
+            }
+        });
+
+        // Prevent scrolling when modal is open
+        danaInfoModal.addEventListener('transitionend', () => {
+            if (!danaInfoModal.classList.contains('hidden')) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = '';
+            }
+        });
+
+        // Particle Animation Logic
+        const canvas = document.getElementById('particlesCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        const numParticles = 100; // Number of particles
+
+        // Set canvas dimensions to full window size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // Particle constructor
+        function Particle(x, y, radius, color, velocity) {
+            this.x = x;
+            this.y = y;
+            this.radius = radius;
+            this.color = color;
+            this.velocity = velocity;
+            this.alpha = 1; // Initial opacity
+        }
+
+        // Draw particle
+        Particle.prototype.draw = function() {
+            ctx.save();
+            ctx.globalAlpha = this.alpha; // Apply opacity
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.restore();
+        };
+
+        // Update particle position and opacity
+        Particle.prototype.update = function() {
+            this.x += this.velocity.x;
+            this.y += this.velocity.y;
+            this.alpha -= 0.008; // Fade out over time
+
+            // Remove particle if it's completely faded or out of bounds
+            if (this.alpha <= 0 || this.x + this.radius < 0 || this.x - this.radius > canvas.width || this.y + this.radius < 0 || this.y - this.radius > canvas.height) {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radius = Math.random() * 2 + 1; // Reset radius
+                this.alpha = 1; // Reset opacity
+                this.velocity = {
+                    x: (Math.random() - 0.5) * 0.5, // Slower movement
+                    y: (Math.random() - 0.5) * 0.5
+                };
+            }
+            this.draw();
+        };
+
+        // Initialize particles
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < numParticles; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const radius = Math.random() * 2 + 1; // Random size between 1 and 3
+                const color = `rgba(255, 255, 255, ${Math.random()})`; // White with random opacity
+                const velocity = {
+                    x: (Math.random() - 0.5) * 0.5, // Slower movement
+                    y: (Math.random() - 0.5) * 0.5
+                };
+                particles.push(new Particle(x, y, radius, color, velocity));
+            }
+        }
+
+        // Animation loop
+        function animateParticles() {
+            requestAnimationFrame(animateParticles);
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+            particles.forEach(particle => {
+                particle.update();
+            });
+        }
+
+        // Event listeners for canvas resizing
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            initParticles(); // Re-initialize particles on resize
+        });
+
+        // Initialize and start animation when window loads
+        window.onload = function() {
+            resizeCanvas();
+            initParticles();
+            animateParticles();
+        };
+    </script>
+</body>
+</html>
+
